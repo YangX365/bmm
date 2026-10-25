@@ -81,7 +81,13 @@ RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.tuna.tsinghua.edu.cn#g' /etc/apk/re
     /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg /usr/local/bin/corepack
 COPY --from=builder /app .
 
+# 【优化 5】镜像内不装 pnpm，改用垫片接管 db-init 里的 `pnpm drizzle-kit ...`
+#   数据库首次初始化时 db-init.mjs 会通过 zx(bash) 调用 pnpm，没有它会报
+#   `/bin/bash: line 1: pnpm: command not found`；垫片只是转发到 node_modules/.bin
+COPY scripts/pnpm-shim.sh /usr/local/bin/pnpm
+RUN chmod +x /usr/local/bin/pnpm
+
 EXPOSE 3000
 
-# 等价于原来的 pnpm run start（先 db-init，再 next start），只是不再依赖 pnpm
+# 等价于原来的 pnpm run start（先 db-init，再 next start）
 CMD ["sh", "-c", "node_modules/.bin/tsx scripts/db-init.mjs -P && exec node_modules/.bin/next start"]
